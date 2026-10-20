@@ -42,6 +42,53 @@ function finish(code, message) {
   process.exit(code);
 }
 
+const APP_ID = 'HtsAdBlock.HotstarAdBlock';
+const PACKAGE_ID = 'HtsAdBlock';
+const PUSHED_PATH = '/home/owner/share/tmp/sdk_tools/package.wgt';
+const version = /<widget[^>]*\bversion="([^"]+)"/.exec(fs.readFileSync(path.join(__dirname, 'config.xml'), 'utf8'))[1];
+
+function installedVersion() {
+  return fetch(`http://${tvIp}:8001/api/v2/applications/${APP_ID}`)
+    .then((res) => res.json())
+    .then((info) => (info.id === APP_ID ? info.version : null))
+    .catch(() => null);
+}
+
+// The installer pushes the package without waiting for SDB acknowledgements and starts
+// the install straight away, so the TV can install a stale package.wgt left from an
+// earlier install. By now the push has landed; install that file again ourselves.
+function reinstallPushedPackage() {
+  const adbhost = require(path.join(__dirname, 'service', 'node_modules', 'adbhost'));
+  return new Promise((resolve) => {
+    const adb = adbhost.createConnection({ host: tvIp, port: 26101 });
+    let output = '';
+    adb._stream.on('connect', () => {
+      const shell = adb.createStream(`shell:0 vd_appinstall ${PACKAGE_ID} ${PUSHED_PATH}`);
+      shell.on('data', (data) => {
+        output += data.toString();
+        if (output.includes('spend time')) {
+          adb._stream.end();
+          resolve(output);
+        }
+      });
+    });
+    adb._stream.on('error', (error) => resolve(`sdb error: ${error.message}`));
+    setTimeout(() => resolve(output || 'sdb: no reply'), 30000);
+  });
+}
+
+async function verify() {
+  await new Promise((r) => setTimeout(r, 3000));
+  if (await installedVersion() === version) finish(0, `verified: ${APP_ID} ${version} on the TV`);
+  console.log('TV did not register the new package; reinstalling the pushed file…');
+  ws.close();
+  await new Promise((r) => setTimeout(r, 3000));
+  console.log(await reinstallPushedPackage());
+  const after = await installedVersion();
+  if (after === version) finish(0, `verified: ${APP_ID} ${version} on the TV`);
+  finish(1, `install not verified (TV reports version ${after})`);
+}
+
 const ws = new WebSocket('ws://localhost:8091');
 const send = (type, payload) => ws.send(JSON.stringify({ type, payload }));
 
@@ -66,7 +113,11 @@ ws.on('message', (raw) => {
     // Undo the certificate wipe as soon as it happens.
     restoreCert();
   } else if (type === Events.InstallPackage) {
-    if (payload && payload.response === 0) finish(0, `installed: ${JSON.stringify(payload.result || '')}`);
+    if (payload && payload.response === 0) {
+      restoreCert();
+      console.log('installer reports installed; verifying…');
+      verify();
+    }
     if (payload && payload.response === 2) finish(1, 'installer has no Samsung certificate');
   } else if (type === Events.Error) {
     finish(1, `installer error: ${payload}`);
