@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Hotstar AdBlock</title>
+  <script src="$WEBAPIS/webapis/webapis.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; background: #0c111b; color: #f5f7fa; font-family: sans-serif; }
+    main { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; text-align: center; }
+    h1 { margin: 0; font-size: 64px; }
+    #status { font-size: 34px; color: #9fb3c8; max-width: 1400px; line-height: 1.4; }
+    #hint { font-size: 28px; color: #6b7c93; }
+    .error { color: #ff8a80 !important; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Hotstar AdBlock</h1>
+    <div id="status">Starting…</div>
+    <div id="hint"></div>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

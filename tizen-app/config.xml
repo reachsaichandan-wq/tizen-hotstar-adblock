@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns:tizen="http://tizen.org/ns/widgets" xmlns="http://www.w3.org/ns/widgets" id="https://github.com/reachsaichandan-wq/tizen-hotstar-adblock" version="0.2.0" viewmodes="maximized">
+    <access origin="*" subdomains="true"></access>
+    <tizen:application id="HtsAdBlock.HotstarAdBlock" package="HtsAdBlock" required_version="3.0"/>
+    <author href="https://github.com/reachsaichandan-wq/tizen-hotstar-adblock">reachsaichandan-wq</author>
+    <content src="index.html"/>
+    <feature name="http://tizen.org/feature/screen.size.all"/>
+    <feature name="http://tizen.org/feature/web.service"/>
+    <icon src="icon.png"/>
+    <tizen:metadata key="http://samsung.com/tv/metadata/floating.navigation" value="false"/>
+    <tizen:metadata key="http://samsung.com/tv/metadata/use.uwe" value="true"/>
+    <tizen:metadata key="http://samsung.com/tv/metadata/no_use_process_pool" value="true"/>
+    <tizen:metadata key="http://samsung.com/tv/metadata/html5.4k.support" value="true"/>
+    <name>Hotstar AdBlock</name>
+    <tizen:privilege name="http://tizen.org/privilege/internet"/>
+    <tizen:privilege name="http://developer.samsung.com/privilege/network.public"/>
+    <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+    <tizen:privilege name="http://tizen.org/privilege/application.launch"/>
+    <tizen:profile name="tv-samsung"/>
+    <tizen:service id="HtsAdBlock.Service">
+        <tizen:content src="service/dist/index.js"/>
+        <tizen:name>HotstarAdBlockService</tizen:name>
+        <tizen:description>Attaches DevTools to the app and injects the ad blocker into hotstar.com</tizen:description>
+    </tizen:service>
+    <tizen:setting screen-orientation="landscape" context-menu="enable" background-support="enable" encryption="disable" install-location="auto" hwkey-event="enable"/>
+</widget>
