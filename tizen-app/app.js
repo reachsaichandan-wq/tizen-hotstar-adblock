@@ -1,9 +1,9 @@
 /*
- * Launcher page. Flow (same handshake TizenBrew uses):
- *   1. Make sure the background service is running (it listens on ws://127.0.0.1:8095).
- *   2. Ask it whether DevTools is attached to this app.
- *      - attached      -> navigate to hotstar.com; the service injects userScript.js there.
- *      - not attached  -> ask the service to relaunch this app in debug mode, then exit.
+ * Launcher page.
+ *   Default: ask the background service to debug-launch the Samsung JioHotstar app and
+ *   inject the ad blocker into it, then get out of the way.
+ *   Fallback (ENTER after a failure): relaunch this app in debug mode and open the
+ *   hotstar.com website with the blocker injected.
  */
 (function () {
   'use strict';
@@ -13,12 +13,15 @@
   var KEYS = ['ColorF0Red', 'MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaFastForward', 'MediaRewind'];
   var BACK = 10009;
   var ENTER = 13;
+  var WEBSITE_FLAG = 'hotstarAdblock.websiteMode';
 
   var statusEl = document.getElementById('status');
   var hintEl = document.getElementById('hint');
   var socket = null;
   var pollTimer = null;
-  var waitingForUser = false;
+  var unknownPolls = 0;
+  var nativeRequested = false;
+  var onEnter = null;
 
   function setStatus(text, hint, isError) {
     statusEl.textContent = text;
@@ -37,53 +40,90 @@
   }
 
   function tvIp() {
-    try { return webapis.network.getIp() || '127.0.0.1'; } catch (_e) { return '127.0.0.1'; }
+    try { return webapis.network.getIp() || ''; } catch (_e) { return ''; }
+  }
+
+  function flag(name, value) {
+    try {
+      if (value === undefined) return localStorage.getItem(name);
+      if (value === null) localStorage.removeItem(name);
+      else localStorage.setItem(name, value);
+    } catch (_e) { /* storage unavailable */ }
+    return null;
   }
 
   function send(message) {
+    message.tvIP = tvIp();
     if (socket && socket.readyState === 1) socket.send(JSON.stringify(message));
   }
 
-  function openHotstar() {
-    try { sessionStorage.setItem('hotstarOpened', '1'); } catch (_e) { /* ignore */ }
-    setStatus('Opening Hotstar…', 'Ad blocking is active. RED button turns it on/off.');
-    registerKeys();
-    setTimeout(function () { location.href = HOTSTAR_URL; }, 400);
+  function poll(delay) {
+    clearTimeout(pollTimer);
+    pollTimer = setTimeout(function () { send({ type: 'status' }); }, delay);
+  }
+
+  function startWebsiteMode() {
+    flag(WEBSITE_FLAG, '1');
+    setStatus('Restarting app with ad blocker…');
+    send({ type: 'relaunch' });
+    setTimeout(function () { app().exit(); }, 300);
+  }
+
+  function handleWebsite(status) {
+    if (status.debugReady) {
+      flag(WEBSITE_FLAG, null);
+      setStatus('Opening hotstar.com…', 'Ad blocking is active. RED button turns it on/off.');
+      registerKeys();
+      setTimeout(function () { location.href = HOTSTAR_URL; }, 400);
+    } else if (status.launching) {
+      setStatus('Connecting ad blocker…');
+      poll(500);
+    } else if (status.lastError) {
+      flag(WEBSITE_FLAG, null);
+      setStatus('Could not start website mode: ' + status.lastError, 'BACK: exit', true);
+    } else {
+      startWebsiteMode();
+    }
   }
 
   function handleStatus(status) {
     clearTimeout(pollTimer);
-    if (status.debugReady) {
-      // Coming back from Hotstar with the Back key: don't bounce straight back in.
-      var returned = false;
-      try { returned = sessionStorage.getItem('hotstarOpened') === '1'; } catch (_e) { /* ignore */ }
-      if (returned) {
-        waitingForUser = true;
-        setStatus('Ad blocking is ready.', 'ENTER: open Hotstar    BACK: exit');
-        return;
-      }
-      openHotstar();
-      return;
-    }
-    if (status.launching) {
-      setStatus('Connecting ad blocker…', status.lastError || '');
-      pollTimer = setTimeout(function () { send({ type: 'status' }); }, 500);
-      return;
-    }
+
     if (status.canDebug === false) {
+      flag(WEBSITE_FLAG, null);
       setStatus('Developer Mode Host PC IP must be 127.0.0.1',
         'Apps → 12345 → Host PC IP = 127.0.0.1 → hold power until the Samsung logo shows → open this app again.', true);
       return;
     }
-    if (status.lastError) {
-      setStatus('Could not start ad blocker: ' + status.lastError,
-        'Press ENTER to retry, BACK to exit.', true);
-      waitingForUser = true;
+    if (status.canDebug === null && unknownPolls < 6) {
+      unknownPolls += 1;
+      poll(500);
       return;
     }
-    setStatus('Restarting app with ad blocker…');
-    send({ type: 'relaunch', tvIP: tvIp() });
-    setTimeout(function () { app().exit(); }, 300);
+
+    if (flag(WEBSITE_FLAG) === '1') {
+      handleWebsite(status);
+      return;
+    }
+
+    if (!nativeRequested) {
+      nativeRequested = true;
+      setStatus('Opening JioHotstar with ad blocker…', 'This takes a few seconds.');
+      send({ type: 'launchNative' });
+      return;
+    }
+    if (status.native && status.native.ok === true) {
+      setStatus('Ad blocker attached to JioHotstar.');
+      setTimeout(function () { app().exit(); }, 500);
+      return;
+    }
+    if (status.native && status.native.ok === false) {
+      setStatus('Could not attach to the JioHotstar app: ' + status.native.error,
+        'ENTER: open hotstar.com website instead    BACK: exit', true);
+      onEnter = startWebsiteMode;
+      return;
+    }
+    poll(500);
   }
 
   function startService(onStarted) {
@@ -92,7 +132,7 @@
       new tizen.ApplicationControl('http://tizen.org/appcontrol/operation/service'),
       pkgId + '.Service',
       onStarted,
-      function (error) { setStatus('Service failed to start: ' + error.message, 'Press BACK to exit.', true); }
+      function (error) { setStatus('Service failed to start: ' + error.message, 'BACK: exit', true); }
     );
   }
 
@@ -111,8 +151,8 @@
       } else if (attempt < 20) {
         setTimeout(function () { connect(attempt + 1); }, 500);
       } else {
-        setStatus('Service did not respond.', 'Press ENTER to retry, BACK to exit.', true);
-        waitingForUser = true;
+        setStatus('Service did not respond.', 'ENTER: retry    BACK: exit', true);
+        onEnter = function () { connect(0); };
       }
     };
   }
@@ -120,12 +160,12 @@
   document.addEventListener('keydown', function (event) {
     if (event.keyCode === BACK) {
       event.preventDefault();
+      flag(WEBSITE_FLAG, null);
       app().exit();
-    } else if (event.keyCode === ENTER && waitingForUser) {
-      waitingForUser = false;
-      try { sessionStorage.removeItem('hotstarOpened'); } catch (_e) { /* ignore */ }
-      if (socket && socket.readyState === 1) send({ type: 'status', reset: true });
-      else connect(0);
+    } else if (event.keyCode === ENTER && onEnter) {
+      var action = onEnter;
+      onEnter = null;
+      action();
     }
   });
 

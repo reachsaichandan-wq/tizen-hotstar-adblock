@@ -58,6 +58,10 @@
   if (window.__tvHotstarAdblock) return;
   window.__tvHotstarAdblock = true;
 
+  // 'native' when injected into the Samsung JioHotstar app, which handles the remote
+  // itself; TV navigation helpers are only for the hotstar.com website.
+  var NATIVE = window.__tvHotstarAdblockMode === 'native';
+
   var LOG = '[Hotstar AdBlock]';
   var ENABLED_KEY = 'tvHotstarAdblock.enabled';
   var ACTIVITY_KEY = 'tvHotstarAdblock.activity';
@@ -258,7 +262,8 @@
     if (document.getElementById(HIDE_STYLE_ID) || !document.documentElement) return;
     var style = document.createElement('style');
     style.id = HIDE_STYLE_ID;
-    style.textContent = enabled ? HIDE_STYLE + '\n' + FOCUS_STYLE : FOCUS_STYLE;
+    var focus = NATIVE ? '' : FOCUS_STYLE;
+    style.textContent = enabled ? HIDE_STYLE + '\n' + focus : focus;
     document.documentElement.appendChild(style);
   }
 
@@ -445,6 +450,7 @@
   }
 
   document.addEventListener('keydown', function (event) {
+    if (NATIVE) return;
     var code = event.keyCode;
     var handled = false;
     if (code === KEY.RED) {
@@ -481,7 +487,8 @@
     startDomWatch();
   }
   window.addEventListener('load', function () {
-    toast(enabled ? 'Hotstar AdBlock ON • RED button toggles' : 'Hotstar AdBlock OFF • RED button toggles');
+    if (NATIVE) toast('Hotstar AdBlock ON');
+    else toast(enabled ? 'Hotstar AdBlock ON • RED button toggles' : 'Hotstar AdBlock OFF • RED button toggles');
   }, { once: true });
   console.info(LOG, enabled ? 'enabled' : 'disabled');
 })();

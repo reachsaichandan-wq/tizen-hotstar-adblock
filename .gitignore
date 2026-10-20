@@ -2,3 +2,4 @@
 node_modules/
 transpiled/
 dist/
+.bridge-token

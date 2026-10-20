@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns:tizen="http://tizen.org/ns/widgets" xmlns="http://www.w3.org/ns/widgets" id="https://github.com/reachsaichandan-wq/tizen-hotstar-adblock" version="0.2.0" viewmodes="maximized">
+<widget xmlns:tizen="http://tizen.org/ns/widgets" xmlns="http://www.w3.org/ns/widgets" id="https://github.com/reachsaichandan-wq/tizen-hotstar-adblock" version="0.3.0" viewmodes="maximized">
     <access origin="*" subdomains="true"></access>
     <tizen:application id="HtsAdBlock.HotstarAdBlock" package="HtsAdBlock" required_version="3.0"/>
     <author href="https://github.com/reachsaichandan-wq/tizen-hotstar-adblock">reachsaichandan-wq</author>

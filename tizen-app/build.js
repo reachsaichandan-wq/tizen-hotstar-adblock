@@ -19,6 +19,12 @@ if (!fs.existsSync(path.join(serviceDir, 'node_modules'))) run('npm install --no
 run('npm run build', serviceDir);
 fs.copyFileSync(path.join(appDir, '..', 'userScript.js'), path.join(serviceDir, 'dist', 'userScript.js'));
 
+// Secret for the developer bridge (port 8096). Kept out of git; reused across builds so
+// an installed app keeps matching the local copy.
+const tokenFile = path.join(appDir, '.bridge-token');
+if (!fs.existsSync(tokenFile)) fs.writeFileSync(tokenFile, require('node:crypto').randomBytes(24).toString('hex'));
+fs.copyFileSync(tokenFile, path.join(serviceDir, 'dist', 'bridge-token.txt'));
+
 const AdmZip = require(path.join(serviceDir, 'node_modules', 'adm-zip'));
 const zip = new AdmZip();
 for (const file of ['config.xml', 'icon.png', 'index.html', 'app.js']) {
