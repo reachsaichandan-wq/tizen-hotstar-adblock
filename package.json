@@ -1,0 +1,26 @@
+{
+  "name": "tizen-hotstar-adblock",
+  "version": "0.1.0",
+  "description": "TizenBrew module: blocks known JioHotstar ad requests, hides sponsored banners and skips ad videos on Samsung Tizen TVs.",
+  "packageType": "mods",
+  "appName": "Hotstar AdBlock",
+  "websiteURL": "https://www.hotstar.com/in",
+  "main": "userScript.js",
+  "keys": [
+    "ColorF0Red",
+    "MediaPlayPause",
+    "MediaPlay",
+    "MediaPause",
+    "MediaFastForward",
+    "MediaRewind"
+  ],
+  "scripts": {
+    "check": "node --check userScript.js",
+    "test": "node test/match.test.js"
+  },
+  "files": [
+    "userScript.js",
+    "README.md"
+  ],
+  "license": "MIT"
+}
